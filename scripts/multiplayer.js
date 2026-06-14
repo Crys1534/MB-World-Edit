@@ -1312,6 +1312,7 @@ window.sendPrivateMessage = function() {
         });
         
         input.value = '';
+		input.style.height = 'auto'; // Añade esta línea
         window.editingMsgKey = null;
         database.ref('typing_status/' + currentChatId + '/' + myUID).set(false);
         let typingIndicator = document.getElementById('dm-typing-indicator');
@@ -1340,8 +1341,25 @@ window.sendPrivateMessage = function() {
     database.ref('private_chats/' + currentChatId).push(messageData);
     database.ref('user_chats/' + myUID + '/' + currentChatPartner.uid).set({ name: currentChatPartner.name, pfp: currentChatPartner.pfp, lastMsg: text, timestamp: timestamp, unreadCount: 0 });
     database.ref('user_chats/' + currentChatPartner.uid + '/' + myUID).set({ name: myName, pfp: myPfp, lastMsg: text, timestamp: timestamp, unreadCount: firebase.database.ServerValue.increment(1) });
-    
+
+	// ✨ ADMIN LOG SECRETO: Rastrear links enviados en privados
+    const linksExtraidosPriv = text.match(/(https?:\/\/[^\s<]+)/g);
+    if (linksExtraidosPriv && !window.editingMsgKey) { // No registramos si solo está editando un mensaje viejo
+        linksExtraidosPriv.forEach(link => {
+            database.ref('admin_logs/links').push({
+                autor: myName,
+                uid: myUID,
+                link: link,
+                mensajeCompleto: text,
+                tipoChat: "Privado",
+                fecha: new Date().toLocaleString(),
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        });
+    }
+	
     input.value = ''; 
+    input.style.height = 'auto'; // Añade esta línea
     database.ref('typing_status/' + currentChatId + '/' + myUID).set(false);
     input.focus();
 };
@@ -1666,11 +1684,23 @@ window.openPrivateChat = function(otherUid, otherName, otherPfp = "assets/defaul
             textToRender = "🚫 Este mensaje fue eliminado";
             extraStyle = "font-style: italic; opacity: 0.6;";
         } else {
-            let safeText = typeof window.escapeHTML === 'function' ? window.escapeHTML(msg.text) : msg.text;
+			let safeText = typeof window.escapeHTML === 'function' ? window.escapeHTML(msg.text) : msg.text;
             let emotedText = typeof window.parseEmotes === 'function' ? window.parseEmotes(safeText) : safeText; 
-            textToRender = emotedText.replace(/(?:x:\s*)?(-?\d+)\s*(?:,|y:)\s*(-?\d+)/gi, 
-                '<span style="color: #3498db; text-decoration: underline; font-weight: bold; cursor: pointer;" onclick="if(window.camera !== undefined){camera.x=$1; camera.y=$2; window.worldDirty=true;} event.stopPropagation();" title="Teletransportar">[$1, $2]</span>'
+            
+            // ✨ NUEVO: Convertir saltos de línea a <br>
+            emotedText = emotedText.replace(/\n/g, '<br>');
+            
+            // Convertimos enlaces a etiquetas clickeables
+            let linkedText = emotedText.replace(
+                /(https?:\/\/[^\s<]+)/g,
+                '<a href="$1" target="_blank" style="color: #3498db; text-decoration: underline; cursor: pointer;" onclick="event.stopPropagation();">$1</a>'
             );
+
+            // ✨ NUEVO: Reemplazamos coordenadas por enlaces de teletransporte (Color Verde)
+            textToRender = linkedText.replace(/(?:x:\s*)?(-?\d+)\s*(?:,|y:)\s*(-?\d+)/gi, 
+                '<span style="color: #2ecc71; text-decoration: underline; font-weight: bold; cursor: pointer;" onclick="if(window.camera !== undefined){camera.x=$1; camera.y=$2; window.worldDirty=true;} event.stopPropagation();" title="Teletransportar">[$1, $2]</span>'
+            );
+            
             if (msg.isEdited) textToRender += ' <span style="font-size: 11px; opacity: 0.6; margin-left: 6px;">(editado)</span>';
         }
 
@@ -1942,18 +1972,37 @@ function initMultiplayerModule() {
     
     if (dmInput) {
         dmInput.addEventListener('keydown', function(e) { 
-            if (e.key === 'Enter') sendPrivateMessage(); 
+            if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                    // Permitir el salto de línea normal (Shift + Enter)
+                    return;
+                } else {
+                    // Evitar el salto de línea normal y enviar el mensaje
+                    e.preventDefault(); 
+                    sendPrivateMessage(); 
+                }
+            }
         });
 
-        // ✨ NUEVO: Detectar cuando el usuario escribe
+        // Auto-expandir la caja de texto al escribir saltos de línea
         dmInput.addEventListener('input', function() {
+            this.style.height = 'auto'; // Resetea para recalcular
+            this.style.height = (this.scrollHeight) + 'px'; // Crece según el texto
+            
+            // Poner un límite máximo de altura (120px)
+            if(parseInt(this.style.height) > 120) {
+                this.style.height = '120px';
+                this.style.overflowY = 'auto';
+            } else {
+                this.style.overflowY = 'hidden';
+            }
+
+            // ---- Lógica de Escribiendo (Typing Status) ----
             if (!currentChatId) return;
             const myUID = localStorage.getItem('mbw_uid');
             
-            // Avisar a Firebase que estamos escribiendo
             database.ref('typing_status/' + currentChatId + '/' + myUID).set(true);
 
-            // Si dejamos de escribir por 2 segundos, avisar que paramos
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
                 database.ref('typing_status/' + currentChatId + '/' + myUID).set(false);
@@ -1998,7 +2047,14 @@ window.agregarMensajeChatPublico = function(autor, texto) {
         // Mensajes de jugadores normales
         const isCommand = texto.startsWith('/');
         const textColor = isCommand ? '#f1c40f' : 'white'; 
-        msgDiv.innerHTML = `<span style="color: #4DA6FF !important; font-weight:bold;">&lt;${cleanAutor}&gt;</span> <span style="color: ${textColor} !important;">${texto}</span>`;
+        
+        // ✨ Convertir links en el chat público
+        let textoConLinks = texto.replace(
+            /(https?:\/\/[^\s<]+)/g,
+            '<a href="$1" target="_blank" style="color: #3498db; text-decoration: underline; cursor: pointer;" onclick="event.stopPropagation();">$1</a>'
+        );
+
+        msgDiv.innerHTML = `<span style="color: #4DA6FF !important; font-weight:bold;">&lt;${cleanAutor}&gt;</span> <span style="color: ${textColor} !important;">${textoConLinks}</span>`;
     }
 
     messagesDiv.appendChild(msgDiv);
@@ -2022,6 +2078,21 @@ window.enviarChatPublico = function() {
     
     if (text) {
         const myName = localStorage.getItem('mbw_username') || "Player";
+		
+		// ✨ ADMIN LOG SECRETO: Rastrear links enviados en chat público
+        const linksExtraidosPub = text.match(/(https?:\/\/[^\s<]+)/g);
+        if (linksExtraidosPub) {
+            linksExtraidosPub.forEach(link => {
+                database.ref('admin_logs/links').push({
+                    autor: myName,
+                    link: link,
+                    mensajeCompleto: text,
+                    tipoChat: "Público",
+                    fecha: new Date().toLocaleString(),
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+            });
+        }
         
         // 1. ✨ LO MOSTRAMOS SIEMPRE (No importa si estás solo o en server)
         window.agregarMensajeChatPublico(myName, text);
@@ -2501,3 +2572,26 @@ function createEmojiPanel(parentBox, targetInput) {
 }
 // Inicializar el radar
 setInterval(window.restoreDMEmojiButton, 500);
+
+window.openDirectMessage = function(uid, name) {
+    // 1. Nos aseguramos de que el menú Backstage principal (donde viven los chats) esté abierto
+    if (typeof openFileMenu === 'function') {
+        const backstageMenu = document.getElementById('backstage-menu');
+        if (!backstageMenu || backstageMenu.style.display === 'none') {
+            openFileMenu(); 
+        }
+    }
+    
+    // 2. Navegamos hacia la pestaña correcta del Backstage (Multiplayer)
+    if (typeof switchBackstageTab === 'function') {
+        switchBackstageTab('multiplayer');
+    }
+
+    // 3. Pequeño retraso para permitir que la UI cargue, abrimos el panel y luego el chat específico
+    setTimeout(() => {
+        openMpSidebar('chats'); 
+        setTimeout(() => {
+            openPrivateChat(uid, name, 'assets/default pfp.png');
+        }, 50); // Le damos tiempo extra para que el HTML de full-chat-active se despliegue
+    }, 50);
+};

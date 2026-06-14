@@ -889,8 +889,25 @@ window.openBackupsModal = async function(worldName) {
                 const realIndex = world.backups.length - 1 - i;
                 const dateObj = new Date(bkp.date);
                 const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString();
-                const bytes = new Blob([bkp.data]).size;
-                const sizeStr = typeof window.formatBytes === 'function' ? window.formatBytes(bytes) : (bytes/1024).toFixed(2) + " KB";
+                
+                // ✨ NUEVO CÁLCULO DE PESO COMPRIMIDO ✨
+                let encodedData = bkp.data;
+                if (typeof mbwAlgorithm !== 'undefined') {
+                    try {
+                        const parsedData = JSON.parse(bkp.data);
+                        const stringified = JSON.stringify(parsedData);
+                        encodedData = mbwAlgorithm.encode(stringified);
+                    } catch(e) {}
+                }
+                const bytes = new Blob([encodedData]).size;
+                
+                let sizeStr = bytes + " B";
+                if (bytes >= 1048576) {
+                    sizeStr = (bytes / 1048576).toFixed(2) + " MB";
+                } else if (bytes >= 1024) {
+                    sizeStr = (bytes / 1024).toFixed(2) + " KB";
+                }
+                // ✨ FIN DEL NUEVO CÁLCULO ✨
                 
                 const div = document.createElement('div');
                 div.style = "display:flex; justify-content:space-between; align-items:center; background:#8B8B8B; border: 2px solid #555; padding:10px; border-radius: 4px; color: white;";

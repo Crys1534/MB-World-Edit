@@ -18,11 +18,16 @@ const uiElements = {
     ribbon: document.getElementById('ribbon'),
 };
 
-const ZOOM_LEVELS = [3, 4, 5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600];
-let currentZoomIndex = 7; 
+const ZOOM_LEVELS = [3, 4, 5, 8, 10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 600];
+let currentZoomIndex = 8; 
 let currentZoom = 100;
 const BASE_TILE_SIZE = 16;
 let showGrid = false;
+window.hideMobNames = false; // Variable global para controlar la visibilidad de los nombres
+window.toggleMobNames = function(isHidden) {
+    window.hideMobNames = isHidden;
+    worldDirty = true; // Forzamos a que el lienzo se vuelva a dibujar
+};
 const grid = { width: 60, height: 30 };
 let tileSize = BASE_TILE_SIZE;
 
@@ -394,13 +399,20 @@ function drawMobs() {
                 ctx.lineWidth = 1; 
             }
             
-            ctx.fillStyle = "#FFFFFF";
-            ctx.font = "bold 12px Arial";
-            ctx.textAlign = "center";
-            ctx.shadowColor = "black"; ctx.shadowBlur = 4;
-            let displayName = mob.name ? String(mob.name) : String(mob.type).toUpperCase();
-            ctx.fillText(displayName, screenX, screenY - mobHeight - 8);
-            ctx.shadowBlur = 0; 
+            // ✨ FIX: Verificamos si los nombres están ocultos antes de dibujarlos
+            if (!window.hideMobNames) {
+                ctx.fillStyle = "#FFFFFF";
+                ctx.font = "bold 12px Arial";
+                ctx.textAlign = "center";
+                ctx.shadowColor = "black"; ctx.shadowBlur = 4;
+                let displayName = mob.name ? String(mob.name) : String(mob.type).toUpperCase();
+                ctx.fillText(displayName, screenX, screenY - mobHeight - 8);
+                ctx.shadowBlur = 0; 
+                
+                // Si quieres que también se oculte la barra de vida cuando ocultas el nombre,
+                // mueve el bloque de `if (mob.health !== undefined)` AQUÍ ADENTRO. 
+                // Si quieres que la barra de vida siempre se vea, déjalo afuera de este IF.
+            }
             
             if (mob.health !== undefined) {
                 let maxHp = mob.maxHealth || (typeof MOBS_HP_DB !== 'undefined' ? MOBS_HP_DB[mob.type] : 20) || 20;

@@ -259,7 +259,7 @@ function initBackstageMenu() {
                             <div style="padding: 15px; border-bottom: 2px solid #1a252f; display: flex; justify-content: space-between; align-items: center;">
                                 <h3 style="margin: 0; color: white; font-size: 32px;">💬 <span data-i18n="mp_chats">Chats</span></h3>
                             </div>
-                            <div id="full-chat-list-container" style="flex: 1; overflow-y: auto; padding: 0px; display: flex; flex-direction: column; gap: 0px;"></div>
+                            <div id="full-chat-list-container" style="flex: 1; overflow-y: auto; padding: 0px; display: flex; flex-direction: column; gap: 0px; image-rendering: auto;"></div>
                         </div>
 
                         <div style="flex: 1; display: flex; flex-direction: column; background: #2c3e50; position: relative; width: 68%;">
@@ -278,7 +278,7 @@ function initBackstageMenu() {
                                 <div id="full-dm-messages" style="flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #2c3e50;"></div>
                                 
                                 <div style="display: flex; padding: 6px 25px; background: #34495e; gap: 0px; border-top: 2px solid #1a252f;">
-                                    <input type="text" id="full-dm-input" data-i18n-placeholder="mp_send_message" placeholder="Send a message..." style="flex: 1; padding: 12px; font-family: 'Consolas', sans-serif; font-size: 26px; border-radius: 8px; border: none; outline: none; background: #ecf0f1; color: #333;">
+                                    <textarea id="full-dm-input" data-i18n-placeholder="mp_send_message" placeholder="Send a message..." rows="1" style="flex: 1; padding: 12px; font-family: 'Consolas', sans-serif; font-size: 26px; border-radius: 8px; border: none; outline: none; background: #ecf0f1; color: #333; resize: none; overflow-y: hidden; line-height: 1.2;"></textarea>
                                     <button onclick="sendPrivateMessage()" style="background: #2ecc71; border: none; border-radius: 8px; padding: 0 25px; font-size: 28px; cursor: pointer; color: white; transition: 0.2s; font-family: 'Pixeltype', sans-serif;" onmouseover="this.style.background='#27ae60'" onmouseout="this.style.background='#2ecc71'">➔</button>
                                 </div>
                             </div>
@@ -497,8 +497,18 @@ window.renderFullscreenWorldsList = async function() {
                 const spanCalc = document.getElementById(`size-calc-${index}`);
                 
                 if (spanCalc) {
-                    const stringLength = w.data ? w.data.length : 0;
-                    spanCalc.innerHTML = window.formatBytes ? window.formatBytes(stringLength) : (stringLength / 1024).toFixed(1) + ' KB';
+                    // Calculamos el peso del mundo comprimido
+                    let encodedData = w.data || "";
+                    if (typeof mbwAlgorithm !== 'undefined' && w.data) {
+                        try {
+                            const parsedData = JSON.parse(w.data);
+                            const stringified = JSON.stringify(parsedData);
+                            encodedData = mbwAlgorithm.encode(stringified);
+                        } catch(e) {}
+                    }
+                    const bytes = new Blob([encodedData]).size;
+                    
+                    spanCalc.innerHTML = window.formatBytes ? window.formatBytes(bytes) : (bytes / 1024).toFixed(1) + ' KB';
                     spanCalc.style.opacity = "1"; 
                 }
                 

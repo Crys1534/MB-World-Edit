@@ -1580,6 +1580,28 @@ document.addEventListener('mousemove', (e) => {
 // ==========================================
 const newsDatabase = [
     {
+        id: 8,
+        type: "updates",
+        title: "v2.4d Update",
+        date: "Jun 14, 2026", 
+        image: "https://i.imgur.com/ohQQP6r.png", 
+		heroImage: "https://i.imgur.com/ohQQP6r.png", 
+        excerpt: "Chats Upgrade",
+        content: `
+			<ul class="pixel-list">
+				<li><code class="code-tag">[fixed]</code>  option to hide mob names</li>
+				<li><code class="code-tag">[fixed]</code>  8% zoom level</li>
+				<li><code class="code-tag">[fixed]</code>  the public and private chat now accept links</li>
+				<li><code class="code-tag">[fixed]</code>  you can now press Enter to start a new line when typing a message</li>
+				<li><code class="code-tag">[fixed]</code>  the private message button works again</li>
+				<li><code class="code-tag">[fixed]</code>  the file size is now displayed compressed.</li>
+            </ul>
+        `,
+        gallery: [
+            "https://i.imgur.com/aE1tlNJ.png",
+        ]
+    },
+    {
         id: 7,
         type: "updates",
         title: "v2.4c Patch",
@@ -2426,23 +2448,50 @@ function populateWorldInfo() {
     }
     
     // ==========================================
-    // ✨ CALCULAR Y MOSTRAR EL PESO DEL ARCHIVO
+    // ✨ CALCULAR Y MOSTRAR EL PESO COMPRIMIDO (EXPORTADO)
     // ==========================================
     const sizeSpan = document.getElementById('world-info-size');
-    if (sizeSpan && typeof fileManager !== 'undefined' && fileManager.file) {
-        const bytes = fileManager.file.size; // Peso real del archivo cargado
-        let sizeText = bytes + " B";
+    if (sizeSpan && typeof fileManager !== 'undefined') {
         
-        // Lo convertimos a KB o MB para que sea fácil de leer
-        if (bytes >= 1048576) {
-            sizeText = (bytes / 1048576).toFixed(2) + " MB";
-        } else if (bytes >= 1024) {
-            sizeText = (bytes / 1024).toFixed(2) + " KB";
+        // Si no hay mundo creado, es desconocido
+        if (!mbwom || !mbwom.world) {
+            sizeSpan.innerText = "Unknown";
+        } else {
+            // Ponemos un texto temporal mientras calcula (porque comprimir toma unos ms)
+            sizeSpan.innerText = "Calculating...";
+            
+            // Usamos setTimeout para no congelar la UI si el mundo es muy grande
+            setTimeout(() => {
+                try {
+                    // Preparamos los datos tal cual se harían para exportar
+                    let currentScene = (typeof mbwom.currentScene !== 'undefined') ? mbwom.currentScene : 1;
+                    if (mbwom.sceneList) {
+                        mbwom.sceneList.forEach(key => {
+                            if (mbwom[key] !== undefined) mbwom.world[key + currentScene] = mbwom[key];
+                        });
+                    }
+                    
+                    // Comprimimos a string usando tu algoritmo base
+                    const jsonString = JSON.stringify(mbwom.world);
+                    const encodedText = mbwAlgorithm.encode(jsonString);
+                    
+                    // Calculamos el peso en bytes creando un Blob fantasma
+                    const bytes = new Blob([encodedText]).size;
+                    
+                    let sizeText = bytes + " B";
+                    if (bytes >= 1048576) {
+                        sizeText = (bytes / 1048576).toFixed(2) + " MB";
+                    } else if (bytes >= 1024) {
+                        sizeText = (bytes / 1024).toFixed(2) + " KB";
+                    }
+                    
+                    sizeSpan.innerText = sizeText;
+                } catch (e) {
+                    console.error("Error calculating world size:", e);
+                    sizeSpan.innerText = "Error";
+                }
+            }, 10);
         }
-        
-        sizeSpan.innerText = sizeText;
-    } else if (sizeSpan) {
-        sizeSpan.innerText = "Unknown";
     }
 
     // ==========================================
@@ -3644,3 +3693,21 @@ function renderToolbarSettingsList() {
 }
 
 window.addEventListener('DOMContentLoaded', initToolbarSettings);
+
+
+// ✨ MAGIA DE MEMORIA (RAM) ✨
+const memoryDisplay = document.getElementById('memory-display');
+if (memoryDisplay && window.performance && window.performance.memory) {
+    // Convierte los Bytes a Megabytes de manera redondeada
+    const memoryMB = Math.round(window.performance.memory.usedJSHeapSize / (1024 * 1024));
+    memoryDisplay.innerText = "MEM: " + memoryMB + " MB";
+    
+    // Si gastas más de 800 MB se pone Rojo, si gastas más de 400 MB en Amarillo
+    if (memoryMB > 800) {
+        memoryDisplay.style.color = "#e74c3c"; // Rojo (Peligro de lag/crash)
+    } else if (memoryMB > 400) {
+        memoryDisplay.style.color = "#f1c40f"; // Amarillo (Cuidado)
+    } else {
+        memoryDisplay.style.color = "#bdc3c7"; // Gris (Limpio y fresco)
+    }
+}

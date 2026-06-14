@@ -762,6 +762,19 @@
             <div class="ribbon-group-label">Backgrounds</div>
         </div>
 		
+		<div class="separator"></div>
+		
+		<div class="ribbon-group">
+            <label class="ribbon-group-content rg-col-center gap-2 pointer">
+                <span class="icon-24 m-auto">🏷️</span>
+                <div class="rg-row-center gap-5 lbl-small">
+                    <input type="checkbox" id="hide-mob-names" onchange="toggleMobNames(this.checked)"> 
+                    <span data-i18n="lbl_hide_names">Hide Names</span>
+                </div>
+            </label>
+            <div class="ribbon-group-label" data-i18n="lbl_tags">Name Tags</div>
+        </div>
+        <div class="separator"></div>
     </div>
 
   </div> 
@@ -954,7 +967,7 @@
                         <button onclick="resetKeybinds()" data-i18n="btn_reset_keybinds" style="background: #e74c3c; color: white; border: 2px solid #c0392b; padding: 4px 8px; cursor: pointer; font-weight: bold; font-size: 12px; border-radius: 3px;">Reset Defaults</button>
                     </div>
                     <p data-i18n="controls_instructions" style="font-size: 13px; color: #333; margin-top: 0; margin-bottom: 10px;">Click a button and press a new key to change the shortcut.</p>
-                    <div id="keybinds-list" style="display: flex; flex-direction: column; max-height: 230px; overflow-y: auto; padding-right: 5px;"></div>
+                    <div id="keybinds-list" style="display: flex; flex-direction: column; max-height: 230px; overflow-y: 100%; padding-right: 5px;"></div>
                 </div>
 
 <div id="set-tab-toolbar" class="settings-pane">
@@ -1371,6 +1384,7 @@
 <div id="status-bar">
     <div class="status-left">
         <span id="fps-display" data-i18n-title="tooltip_fps" title="Frames Per Second">60 FPS</span>
+		<span id="memory-display" title="Estimated Memory Usage">🔋: -- MB</span>
         <div class="status-divider"></div>
         <span data-i18n="status_ready">Ready</span>
     </div>
