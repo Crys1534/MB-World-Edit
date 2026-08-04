@@ -1824,25 +1824,43 @@ window.addEventListener('DOMContentLoaded', () => {
  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
  <script src="scripts/multiplayer.js"></script>
  
-<!-- PEGAR ESTO JUSTO ANTES DEL </body> -->
+<!-- PEGAR ESTO JUSTO ANTES DEL </body> EN EL EDITOR -->
 <script>
   setTimeout(() => {
     try {
         const db = firebase.database();
         const sessionId = Date.now() + Math.random().toString(36).substring(2, 9);
+        const startTime = Date.now();
         
-        db.ref('visitas_editor/' + sessionId).set({
-            fecha: firebase.database.ServerValue.TIMESTAMP
-        }).then(() => {
-            console.log("✅ Visita registrada con éxito en Firebase!");
-        }).catch((error) => {
-            console.error("❌ Firebase bloqueó la visita (Revisa tus Reglas de Seguridad):", error);
+        // Obtener de dónde viene el usuario
+        let refText = document.referrer || "Directo / Link guardado";
+        if (refText !== "Directo / Link guardado") {
+            try { refText = new URL(refText).hostname; } catch(e) {}
+        }
+
+        const visitRef = db.ref('visitas_editor/' + sessionId);
+        
+        // Registrar visita inicial con la fuente
+        visitRef.set({
+            fecha: firebase.database.ServerValue.TIMESTAMP,
+            fuente: refText,
+            duracion: 0
+        });
+
+        // Actualizar el tiempo que lleva en la página cada 15 segundos (Latido)
+        setInterval(() => {
+            visitRef.update({ duracion: Date.now() - startTime });
+        }, 15000);
+
+        // Intentar guardar el tiempo exacto justo antes de que cierre la pestaña
+        window.addEventListener('beforeunload', () => {
+            visitRef.update({ duracion: Date.now() - startTime });
         });
 
     } catch(e) {
-        console.warn("Analytics ping failed (Error de carga):", e);
+        console.warn("Analytics ping failed:", e);
     }
-  }, 2000);
+  }, 1500);
 </script>
 
  </body>
