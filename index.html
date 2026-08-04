@@ -1824,19 +1824,25 @@ window.addEventListener('DOMContentLoaded', () => {
  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
  <script src="scripts/multiplayer.js"></script>
  
- <!-- PEGAR ESTO JUSTO ANTES DEL </body> -->
+<!-- PEGAR ESTO JUSTO ANTES DEL </body> -->
 <script>
   setTimeout(() => {
     try {
         const db = firebase.database();
         const sessionId = Date.now() + Math.random().toString(36).substring(2, 9);
+        
         db.ref('visitas_editor/' + sessionId).set({
             fecha: firebase.database.ServerValue.TIMESTAMP
+        }).then(() => {
+            console.log("✅ Visita registrada con éxito en Firebase!");
+        }).catch((error) => {
+            console.error("❌ Firebase bloqueó la visita (Revisa tus Reglas de Seguridad):", error);
         });
+
     } catch(e) {
-        console.warn("Analytics ping failed:", e);
+        console.warn("Analytics ping failed (Error de carga):", e);
     }
-  }, 1500);
+  }, 2000);
 </script>
 
  </body>
