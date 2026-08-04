@@ -1821,7 +1821,25 @@ window.addEventListener('DOMContentLoaded', () => {
  <script src="scripts/file-menu.js"></script>
  <script src="scripts/commands.js"></script>
  
- <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
- <script src="scripts/multiplayer.js"></script>
- </body>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="scripts/multiplayer.js"></script>
+
+<!-- ✨ NUEVO: REGISTRO DE VISITAS PARA MBS STUDIO ✨ -->
+<script>
+  // Damos un pequeño retraso de 1 segundo para asegurar que multiplayer.js 
+  // ya haya inicializado Firebase de forma correcta antes de intentar guardar.
+  setTimeout(() => {
+    try {
+        const db = firebase.database();
+        const sessionId = Date.now() + Math.random().toString(36).substring(2, 9);
+        db.ref('visitas_editor/' + sessionId).set({
+            fecha: firebase.database.ServerValue.TIMESTAMP
+        });
+    } catch(e) {
+        console.warn("No se pudo registrar la visita en Firebase:", e);
+    }
+  }, 1000);
+</script>
+
+</body>
 </html>
