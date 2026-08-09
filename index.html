@@ -1832,7 +1832,13 @@ window.addEventListener('DOMContentLoaded', () => {
         const sessionId = Date.now() + Math.random().toString(36).substring(2, 9);
         const startTime = Date.now();
         
-        // Obtener de dónde viene el usuario
+        // Obtenemos el UID del usuario (si no tiene, le creamos uno)
+        let myUID = localStorage.getItem('mbw_uid');
+        if (!myUID) {
+            myUID = 'usr_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('mbw_uid', myUID);
+        }
+
         let refText = document.referrer || "Directo / Link guardado";
         if (refText !== "Directo / Link guardado") {
             try { refText = new URL(refText).hostname; } catch(e) {}
@@ -1840,22 +1846,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
         const visitRef = db.ref('visitas_editor/' + sessionId);
         
-        // Registrar visita inicial con la fuente
         visitRef.set({
             fecha: firebase.database.ServerValue.TIMESTAMP,
             fuente: refText,
-            duracion: 0
+            duracion: 0,
+            uid: myUID // ✨ EL NUEVO DATO QUE ENVIAMOS A FIREBASE
         });
 
-        // Actualizar el tiempo que lleva en la página cada 15 segundos (Latido)
-        setInterval(() => {
-            visitRef.update({ duracion: Date.now() - startTime });
-        }, 15000);
-
-        // Intentar guardar el tiempo exacto justo antes de que cierre la pestaña
-        window.addEventListener('beforeunload', () => {
-            visitRef.update({ duracion: Date.now() - startTime });
-        });
+        setInterval(() => { visitRef.update({ duracion: Date.now() - startTime }); }, 15000);
+        window.addEventListener('beforeunload', () => { visitRef.update({ duracion: Date.now() - startTime }); });
 
     } catch(e) {
         console.warn("Analytics ping failed:", e);
