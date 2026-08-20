@@ -405,6 +405,7 @@ const i18n = {
     "news_v20_title": "v2.0",
     "news_v20_date": "January 16, 2026",
     "news_v20_desc": "New UI, Copy-Paste, Zoom, and more!",
+	"btn_publish": "Publish",
     },
     
 	
@@ -817,6 +818,7 @@ const i18n = {
     "news_v20_title": "v2.0",
     "news_v20_date": "16 de Enero, 2026",
     "news_v20_desc": "¡Nueva interfaz, Copiar-Pegar, Zoom y más!",
+	"btn_publish": "Publicar",
     },
 	
 	
@@ -1226,6 +1228,7 @@ const i18n = {
     "news_v20_title": "v2.0",
     "news_v20_date": "16 de Janeiro de 2026",
     "news_v20_desc": "Nova interface, Copiar-Colar, Zoom e muito mais!",
+	"btn_publish": "Publicar",
     }
 };
 
