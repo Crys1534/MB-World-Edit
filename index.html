@@ -1878,41 +1878,39 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 
-let weeblyWindow = null;
+<!-- SCRIPT DE CONEXIÓN CON WEEBLY -->
+<script>
+    let weeblyWindow = null;
 
-// 1. Función para abrir Weebly
-function publishMapToWeebly() {
-    weeblyWindow = window.open('https://mineblocksstuffs.weebly.com/upload.html', '_blank');
-}
+    // 1. window.publishMapToWeebly asegura que el botón SIEMPRE la encuentre
+    window.publishMapToWeebly = function() {
+        weeblyWindow = window.open('https://mineblocksstuffs.weebly.com/upload.html', '_blank');
+    };
 
-// 2. Escuchar por el "walkie-talkie" cuando Weebly esté listo
-window.addEventListener('message', async function(event) {
-    // Si Weebly nos dice que está listo...
-    if (event.data === 'WEEBLY_READY' && weeblyWindow) {
-        
-        // Obtenemos los textos del editor
-        const mapTitle = document.getElementById('filename-display').value;
-        const mapAuthor = document.getElementById('sidebar-world-author').value;
-        
-        // (OPCIONAL) Obtener el archivo .mbw como Blob.
-        // Como el .mbw lo generas con JSZip en tu fileManager.js, 
-        // aquí deberías poner la variable de ese Blob. Si aún no lo tienes,
-        // lo dejamos como null y el usuario lo sube manual, pero el título y autor sí pasarán.
-        let mapFileBlob = null; 
-        
-        /* Ejemplo de cómo lo integrarías si tuvieras una función así:
-           mapFileBlob = await fileManager.generateZipBlob(); 
-        */
+    // 2. Escuchar por el "walkie-talkie" cuando Weebly esté listo
+    window.addEventListener('message', async function(event) {
+        if (event.data === 'WEEBLY_READY' && weeblyWindow) {
+            
+            // Obtenemos los textos del editor asegurándonos de que los elementos existan
+            const titleInput = document.getElementById('filename-display');
+            const authorInput = document.getElementById('sidebar-world-author');
+            
+            const mapTitle = titleInput ? titleInput.value : '';
+            const mapAuthor = authorInput ? authorInput.value : '';
+            
+            // Por ahora dejamos el archivo como null
+            let mapFileBlob = null; 
 
-        // 3. Enviamos el paquete de datos a Weebly
-        weeblyWindow.postMessage({
-            action: 'LOAD_MAP_DATA',
-            title: mapTitle,
-            author: mapAuthor,
-            fileBlob: mapFileBlob
-        }, '*'); 
-    }
-});
+            // 3. Enviamos el paquete de datos a Weebly
+            weeblyWindow.postMessage({
+                action: 'LOAD_MAP_DATA',
+                title: mapTitle,
+                author: mapAuthor,
+                fileBlob: mapFileBlob
+            }, '*'); 
+        }
+    });
+</script>
 
 
 
