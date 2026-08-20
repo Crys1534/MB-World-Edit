@@ -456,9 +456,9 @@
 	
 	
 	<!-- ✨ NUEVO: BOTÓN DE PUBLICAR ✨ -->
-    <button id="btn-publish-map" onclick="window.open('https://mineblocksstuffs.weebly.com/upload.html', '_blank')" style="margin-bottom: 4px; margin-left: 8px; align-self: flex-end; background-color: #2ecc71; color: black; font-weight: bold; border: 2px solid #27ae60; cursor: pointer; padding: 4px 10px; display: flex; align-items: center; gap: 5px;" title="Publish to Weebly">
-        📢 <span data-i18n="btn_publish">Publish</span>
-    </button>
+    <button id="btn-publish-map" onclick="publishMapToWeebly()" style="margin-bottom: 4px; margin-left: 8px; align-self: flex-end; background-color: #2ecc71; color: black; font-weight: bold; border: 2px solid #27ae60; cursor: pointer; padding: 4px 10px; display: flex; align-items: center; gap: 5px;" title="Publish to Weebly">
+	📢 <span data-i18n="btn_publish">Publish</span>
+	</button>
     <!-- ✨ FIN DEL BOTÓN DE PUBLICAR ✨ -->
 	
     
@@ -1869,6 +1869,60 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }, 1500);
 </script>
+
+
+
+
+
+
+
+
+
+let weeblyWindow = null;
+
+// 1. Función para abrir Weebly
+function publishMapToWeebly() {
+    weeblyWindow = window.open('https://mineblocksstuffs.weebly.com/upload.html', '_blank');
+}
+
+// 2. Escuchar por el "walkie-talkie" cuando Weebly esté listo
+window.addEventListener('message', async function(event) {
+    // Si Weebly nos dice que está listo...
+    if (event.data === 'WEEBLY_READY' && weeblyWindow) {
+        
+        // Obtenemos los textos del editor
+        const mapTitle = document.getElementById('filename-display').value;
+        const mapAuthor = document.getElementById('sidebar-world-author').value;
+        
+        // (OPCIONAL) Obtener el archivo .mbw como Blob.
+        // Como el .mbw lo generas con JSZip en tu fileManager.js, 
+        // aquí deberías poner la variable de ese Blob. Si aún no lo tienes,
+        // lo dejamos como null y el usuario lo sube manual, pero el título y autor sí pasarán.
+        let mapFileBlob = null; 
+        
+        /* Ejemplo de cómo lo integrarías si tuvieras una función así:
+           mapFileBlob = await fileManager.generateZipBlob(); 
+        */
+
+        // 3. Enviamos el paquete de datos a Weebly
+        weeblyWindow.postMessage({
+            action: 'LOAD_MAP_DATA',
+            title: mapTitle,
+            author: mapAuthor,
+            fileBlob: mapFileBlob
+        }, '*'); 
+    }
+});
+
+
+
+
+
+
+
+
+
+
 
  </body>
 </html>
