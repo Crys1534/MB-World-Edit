@@ -456,11 +456,10 @@
 	
 	
 	<!-- ✨ NUEVO: BOTÓN DE PUBLICAR ✨ -->
-    <button id="btn-publish-map" onclick="publishMapToWeebly()" style="margin-bottom: 4px; margin-left: 8px; align-self: flex-end; background-color: #2ecc71; color: black; font-weight: bold; border: 2px solid #27ae60; cursor: pointer; padding: 4px 10px; display: flex; align-items: center; gap: 5px;" title="Publish to Weebly">
-	📢 <span data-i18n="btn_publish">Publish</span>
-	</button>
+    <button id="btn-publish-map" onclick="window.open('https://forms.gle/BfFqecsjVyU3ZNND7', '_blank')" style="margin-bottom: 4px; margin-left: 8px; align-self: flex-end; background-color: #2ecc71; color: black; font-weight: bold; border: 2px solid #27ae60; cursor: pointer; padding: 4px 10px; display: flex; align-items: center; gap: 5px;" title="Publish to Weebly">
+        📢 <span data-i18n="btn_publish">Publish</span>
+    </button>
     <!-- ✨ FIN DEL BOTÓN DE PUBLICAR ✨ -->
-	
     
     <button id="btn-world-info" class="tab-btn btn-ribbon-info" onclick="toggleWorldInfo()" disabled><span data-i18n="btn_world_info">World Info</span></button>
   </div>
@@ -1606,8 +1605,8 @@ window.addEventListener('DOMContentLoaded', () => {
             </p>
             
             <div style="position: absolute; bottom: 10px; left: 15px; font-size: 11px; color: gray; font-family: monospace;">
-                <span data-i18n="about_last_update">Last Update:</span> Ago 20, 2026<br>
-                v2.4d
+                <span data-i18n="about_last_update">Last Update:</span> Jun 8, 2026<br>
+                v2.4c
             </div>
             <div style="position: absolute; bottom: 10px; right: 15px; font-size: 12px; color: gray; font-weight: bold;">
                 2026
@@ -1869,58 +1868,6 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }, 1500);
 </script>
-
-
-
-
-
-
-
-
-
-<!-- SCRIPT DE CONEXIÓN CON WEEBLY -->
-<script>
-    let weeblyWindow = null;
-
-    // 1. window.publishMapToWeebly asegura que el botón SIEMPRE la encuentre
-    window.publishMapToWeebly = function() {
-        weeblyWindow = window.open('https://mineblocksstuffs.weebly.com/upload.html', '_blank');
-    };
-
-    // 2. Escuchar por el "walkie-talkie" cuando Weebly esté listo
-    window.addEventListener('message', async function(event) {
-        if (event.data === 'WEEBLY_READY' && weeblyWindow) {
-            
-            // Obtenemos los textos del editor asegurándonos de que los elementos existan
-            const titleInput = document.getElementById('filename-display');
-            const authorInput = document.getElementById('sidebar-world-author');
-            
-            const mapTitle = titleInput ? titleInput.value : '';
-            const mapAuthor = authorInput ? authorInput.value : '';
-            
-            // Por ahora dejamos el archivo como null
-            let mapFileBlob = null; 
-
-            // 3. Enviamos el paquete de datos a Weebly
-            weeblyWindow.postMessage({
-                action: 'LOAD_MAP_DATA',
-                title: mapTitle,
-                author: mapAuthor,
-                fileBlob: mapFileBlob
-            }, '*'); 
-        }
-    });
-</script>
-
-
-
-
-
-
-
-
-
-
 
  </body>
 </html>
