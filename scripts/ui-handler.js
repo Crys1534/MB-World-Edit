@@ -164,23 +164,37 @@ function toggleAchievements(checked) {
 function setTheme(themeName) {
     const body = document.body;
     
-    // 1. Magia: Encontramos y borramos TODAS las clases que empiecen con "theme-"
+    // 1. Encontramos y borramos TODAS las clases de temas
     const classesToRemove = Array.from(body.classList).filter(c => c.startsWith('theme-'));
     classesToRemove.forEach(c => body.classList.remove(c));
 
-    // 2. Aplicamos el nuevo tema seleccionado (si no es el 'dark' por defecto)
+    // 2. Aplicamos el nuevo tema seleccionado
     if (themeName !== 'dark') {
         body.classList.add('theme-' + themeName);
     }
     
-    // 3. Guardamos en memoria y actualizamos la lista desplegable
-    localStorage.setItem('mbw_theme', themeName);
+    // 3. Actualizamos la lista desplegable visualmente
     const select = document.getElementById('theme-select');
     if (select) select.value = themeName;
+
+    // 4. Intentamos guardar en memoria (con protección para navegadores estrictos)
+    try {
+        localStorage.setItem('mbw_theme', themeName);
+    } catch (e) {
+        console.warn("Memoria bloqueada por el navegador: no se pudo guardar el tema.");
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    const savedTheme = localStorage.getItem('mbw_theme') || 'dark';
+    let savedTheme = 'darkblue'; // Nuestro valor por defecto
+    
+    // Intentamos leer la memoria con protección
+    try {
+        savedTheme = localStorage.getItem('mbw_theme') || 'darkblue';
+    } catch (e) {
+        console.warn("Memoria bloqueada por el navegador: cargando tema por defecto.");
+    }
+    
     setTheme(savedTheme);
     setTimeout(renderHotbarUI, 500);
 });
@@ -3445,8 +3459,6 @@ window.updatePlayerPos = function(axis, value) {
     if (typeof worldDirty !== 'undefined') worldDirty = true; 
 };
 
-
-
 // ==========================================
 // ✨ PANTALLA DE INICIO (FILE MENU VS EDITOR)
 // ==========================================
@@ -3458,14 +3470,14 @@ window.updateStartupMenu = function(selectedValue) {
 
 // 2. Revisar la configuración apenas cargue la página
 window.addEventListener('DOMContentLoaded', () => {
-    // Leemos qué prefirió el usuario (por defecto será 'editor')
-    const startupPreference = localStorage.getItem('mbw_startup_screen') || 'editor';
+    // ✨ FIX: Cambiamos 'editor' por 'filemenu' como valor por defecto
+    const startupPreference = localStorage.getItem('mbw_startup_screen') || 'filemenu';
     
     // Asignamos el valor al dropdown en la ventana de Configuración
     const startupSelect = document.getElementById('startup-screen-select');
     if (startupSelect) startupSelect.value = startupPreference;
     
-    // Si eligió el File Menu, lo abrimos automáticamente
+    // Si eligió (o tiene por defecto) el File Menu, lo abrimos automáticamente
     if (startupPreference === 'filemenu' && typeof openFileMenu === 'function') {
         // Le damos un pequeñísimo respiro de 300ms para que la UI termine de cargar los estilos
         setTimeout(() => {
@@ -3633,7 +3645,6 @@ const availableTools = [
     { id: 'tool-select', icon: '🔳', name: 'Select' },
     { id: 'tool-magic', icon: '🪄', name: 'Magic Wand' },
     { id: 'tool-lasso', icon: '➰', name: 'Lasso / Free Form' },
-    { id: 'tool-eyedropper', icon: '💧', name: 'Eyedropper' },
 	{ id: 'tool-screenshot', icon: '📷', name: 'Screenshot' },
 ];
 

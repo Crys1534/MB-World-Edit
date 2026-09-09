@@ -145,30 +145,247 @@ window.addEventListener('keydown', function(e) {
     // LÍNEAS DE Ctrl+X, Ctrl+C y Ctrl+V FUERON ELIMINADAS AQUÍ.
 });
 
+// --- NUEVO SISTEMA DE SCREENSHOT CON RECORTE Y SCROLL ---
+let snipState = {
+    active: false, isDragging: false,
+    startX: 0, startY: 0, currentX: 0, currentY: 0,
+    camX: 0, camY: 0,
+    rawMouseX: 0, rawMouseY: 0,
+    scrollLoop: null, tileSize: 32 // Tamaño de los bloques en la vista previa
+};
+
 window.takeScreenshot = function() {
-    const canvas = document.getElementById("canvas");
-    if (!canvas) {
-        console.error("No se encontró el canvas para tomar la foto.");
+    initSnippingUI();
+    snipState.active = true;
+    
+    // Centramos la cámara del recorte en tu cámara actual
+    snipState.camX = (typeof camera !== 'undefined' ? Math.floor(camera.x) : 0);
+    snipState.camY = (typeof camera !== 'undefined' ? Math.floor(camera.y) : 0);
+    
+    document.getElementById('snip-modal').style.display = 'flex';
+    renderSnipPreview();
+    
+    // Iniciar el loop de scroll
+    if (!snipState.scrollLoop) {
+        snipState.scrollLoop = requestAnimationFrame(edgeScrollLoop);
+    }
+};
+
+function initSnippingUI() {
+    if (document.getElementById('snip-modal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'snip-modal';
+    modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:999999; display:none; flex-direction:column; align-items:center; justify-content:center;';
+
+    modal.innerHTML = `
+        <div style="color:white; font-family:'Pixeltype', sans-serif; font-size:32px; margin-bottom:10px; text-shadow:2px 2px 0 #000;">
+            📷 Select Area to Capture <span style="font-size:18px; color:#aaa;">(Drag near edges to scroll)</span>
+        </div>
+        <div id="snip-container" style="position:relative; width:80vw; height:70vh; border:4px solid #555; background:#1a1a1a; overflow:hidden; cursor:crosshair; box-shadow:0 10px 30px rgba(0,0,0,0.8);">
+            <canvas id="snip-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; image-rendering:pixelated;"></canvas>
+        </div>
+        <div style="margin-top:15px; display:flex; gap:15px;">
+            <button onclick="confirmScreenshot()" style="background:#2ecc71; color:white; border:none; padding:10px 20px; font-family:'Pixeltype', sans-serif; font-size:24px; border-radius:4px; cursor:pointer;">Download Image</button>
+            <button onclick="closeSnippingUI()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; font-family:'Pixeltype', sans-serif; font-size:24px; border-radius:4px; cursor:pointer;">Cancel</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const cvs = document.getElementById('snip-canvas');
+    
+    // Convierte el ratón a coordenadas del Mundo (Eje Y Invertido)
+    function getMouseWorldCoords(e) {
+        const rect = cvs.getBoundingClientRect();
+        snipState.rawMouseX = e.clientX - rect.left;
+        snipState.rawMouseY = e.clientY - rect.top;
+        
+        const my = cvs.height - snipState.rawMouseY; // Inversión Mágica
+        
+        const wx = Math.floor(snipState.rawMouseX / snipState.tileSize) + Math.floor(snipState.camX);
+        const wy = Math.floor(my / snipState.tileSize) + Math.floor(snipState.camY);
+        return {wx, wy};
+    }
+
+    cvs.addEventListener('mousedown', (e) => {
+        cvs.width = cvs.parentElement.clientWidth;
+        cvs.height = cvs.parentElement.clientHeight;
+        snipState.isDragging = true;
+        const coords = getMouseWorldCoords(e);
+        snipState.startX = coords.wx;
+        snipState.startY = coords.wy;
+        snipState.currentX = coords.wx;
+        snipState.currentY = coords.wy;
+        renderSnipPreview();
+    });
+
+    cvs.addEventListener('mousemove', (e) => {
+        const coords = getMouseWorldCoords(e);
+        if (snipState.isDragging) {
+            snipState.currentX = coords.wx;
+            snipState.currentY = coords.wy;
+            renderSnipPreview();
+        }
+    });
+
+    cvs.addEventListener('mouseup', () => { snipState.isDragging = false; });
+    cvs.addEventListener('mouseleave', () => { snipState.isDragging = false; });
+}
+
+window.closeSnippingUI = function() {
+    document.getElementById('snip-modal').style.display = 'none';
+    snipState.active = false;
+    snipState.isDragging = false;
+};
+
+function edgeScrollLoop() {
+    if (snipState.active) {
+        if (snipState.isDragging) {
+            const cvs = document.getElementById('snip-canvas');
+            const edge = 50; 
+            const speed = 0.6; 
+            let moved = false;
+
+            if (snipState.rawMouseX < edge) { snipState.camX -= speed; moved = true; }
+            if (snipState.rawMouseX > cvs.width - edge) { snipState.camX += speed; moved = true; }
+            
+            // Inversión: Top de la pantalla significa que subimos (Más Y)
+            if (snipState.rawMouseY < edge) { snipState.camY += speed; moved = true; }
+            if (snipState.rawMouseY > cvs.height - edge) { snipState.camY -= speed; moved = true; }
+
+            if (moved) {
+                const my = cvs.height - snipState.rawMouseY;
+                snipState.currentX = Math.floor(snipState.rawMouseX / snipState.tileSize) + Math.floor(snipState.camX);
+                snipState.currentY = Math.floor(my / snipState.tileSize) + Math.floor(snipState.camY);
+                renderSnipPreview();
+            }
+        }
+        snipState.scrollLoop = requestAnimationFrame(edgeScrollLoop);
+    } else {
+        snipState.scrollLoop = null;
+    }
+}
+
+function renderSnipPreview() {
+    const cvs = document.getElementById('snip-canvas');
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    
+    cvs.width = cvs.parentElement.clientWidth;
+    cvs.height = cvs.parentElement.clientHeight;
+
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    ctx.imageSmoothingEnabled = false;
+
+    const startWX = Math.floor(snipState.camX);
+    const startWY = Math.floor(snipState.camY);
+    const endWX = Math.ceil(snipState.camX + cvs.width / snipState.tileSize);
+    const endWY = Math.ceil(snipState.camY + cvs.height / snipState.tileSize);
+
+    if (typeof mbwom !== 'undefined' && mbwom.scene) {
+        for (let x = startWX; x <= endWX; x++) {
+            if (!mbwom.scene[x]) continue;
+            for (let y = startWY; y <= endWY; y++) {
+                let rawBlock = typeof mbwom.getBlockState === 'function' ? mbwom.getBlockState(x, y) : mbwom.scene[x][y];
+                if (!rawBlock || rawBlock === 'air' || rawBlock.type === 'air' || rawBlock.type === 0 || rawBlock.type === '0') continue;
+
+                // ✨ LA CURA DEL MAGENTA: Normalizamos el bloque para que el motor lo entienda
+                let safeState = { type: rawBlock.type };
+                if (rawBlock.states1 !== undefined) safeState.states1 = rawBlock.states1;
+
+                let renderObj = typeof getBlockObject === 'function' ? getBlockObject(safeState) : null;
+                if (!renderObj && window.blockData && window.blockData[safeState.type]) {
+                    renderObj = window.blockData[safeState.type](safeState);
+                }
+                if (!renderObj) continue;
+
+                const drawX = (x - Math.floor(snipState.camX)) * snipState.tileSize;
+                // ✨ Invertir Canvas Y
+                const drawY = cvs.height - (y - Math.floor(snipState.camY)) * snipState.tileSize - snipState.tileSize;
+
+                if (window.images && window.images.blocks && window.images.blocks.complete) {
+                    ctx.drawImage(window.images.blocks, renderObj.x, renderObj.y, 16, 16, drawX, drawY, snipState.tileSize, snipState.tileSize);
+                }
+            }
+        }
+    }
+
+    if (snipState.isDragging || (snipState.startX !== 0 || snipState.startY !== 0)) {
+        const minX = Math.min(snipState.startX, snipState.currentX);
+        const maxX = Math.max(snipState.startX, snipState.currentX);
+        const minY = Math.min(snipState.startY, snipState.currentY);
+        const maxY = Math.max(snipState.startY, snipState.currentY);
+
+        const boxX = (minX - Math.floor(snipState.camX)) * snipState.tileSize;
+        const boxY = cvs.height - (maxY - Math.floor(snipState.camY)) * snipState.tileSize - snipState.tileSize;
+        const boxW = (maxX - minX + 1) * snipState.tileSize;
+        const boxH = (maxY - minY + 1) * snipState.tileSize;
+
+        ctx.fillStyle = 'rgba(52, 152, 219, 0.4)';
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+        ctx.strokeStyle = '#3498db';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(boxX, boxY, boxW, boxH);
+    }
+}
+
+window.confirmScreenshot = function() {
+    if (snipState.startX === snipState.currentX && snipState.startY === snipState.currentY) {
+        alert("Please drag to select an area first!");
         return;
     }
 
-    // ✨ LA MAGIA: Tomamos la foto EXACTA de lo que tu pantalla muestra ahora mismo
-    const imageBase64 = canvas.toDataURL("image/png");
+    const minX = Math.floor(Math.min(snipState.startX, snipState.currentX));
+    const maxX = Math.floor(Math.max(snipState.startX, snipState.currentX));
+    const minY = Math.floor(Math.min(snipState.startY, snipState.currentY));
+    const maxY = Math.floor(Math.max(snipState.startY, snipState.currentY));
 
-    // Generamos un nombre automático con la fecha y hora (Ej: Screenshot_20260407_143000.png)
+    const exportSize = 16;
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = (maxX - minX + 1) * exportSize;
+    finalCanvas.height = (maxY - minY + 1) * exportSize;
+    const ctx = finalCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    if (typeof mbwom !== 'undefined' && mbwom.scene) {
+        for (let x = minX; x <= maxX; x++) {
+            if (!mbwom.scene[x]) continue;
+            for (let y = minY; y <= maxY; y++) {
+                let rawBlock = typeof mbwom.getBlockState === 'function' ? mbwom.getBlockState(x, y) : mbwom.scene[x][y];
+                if (!rawBlock || rawBlock === 'air' || rawBlock.type === 'air' || rawBlock.type === 0 || rawBlock.type === '0') continue;
+
+                let safeState = { type: rawBlock.type };
+                if (rawBlock.states1 !== undefined) safeState.states1 = rawBlock.states1;
+
+                let renderObj = typeof getBlockObject === 'function' ? getBlockObject(safeState) : null;
+                if (!renderObj && window.blockData && window.blockData[safeState.type]) {
+                    renderObj = window.blockData[safeState.type](safeState);
+                }
+                if (!renderObj) continue;
+
+                const drawX = (x - minX) * exportSize;
+                const drawY = (maxY - y) * exportSize; // Mantiene el mundo de pie al descargar
+
+                if (window.images && window.images.blocks && window.images.blocks.complete) {
+                    ctx.drawImage(window.images.blocks, renderObj.x, renderObj.y, 16, 16, drawX, drawY, exportSize, exportSize);
+                }
+            }
+        }
+    }
+
+    const imageBase64 = finalCanvas.toDataURL("image/png");
     const date = new Date();
-    const pad = (num) => num.toString().padStart(2, '0');
-    const filename = `Screenshot_${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.png`;
+    const pad = num => num.toString().padStart(2, '0');
+    const filename = `MBW_Snip_${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}.png`;
 
-    // Creamos un enlace invisible para forzar la descarga en tu navegador
     const link = document.createElement("a");
     link.href = imageBase64;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    console.log("¡Screenshot guardado con éxito!");
+
+    closeSnippingUI();
 };
 
 function toggleConsole() {
@@ -719,7 +936,6 @@ function eyedropper(x, y) {
  if (states && states.type != null) {
      hotbar.slots[slotIndex] = structuredClone(states);
      if (typeof renderHotbarUI === 'function') renderHotbarUI();
-     selectTool('pencil'); mouse.left = false; 
  }
 }
 
@@ -795,9 +1011,6 @@ function mineAndPlace() {
     } 
     else if (currentTool === 'eraser') { 
         if (mouse.left || mouse.right) eraser(mouse.worldX, mouse.worldY); 
-    }
-    else if (currentTool === 'eyedropper') { 
-        if (mouse.left) eyedropper(mouse.worldX, mouse.worldY); 
     }
 }
 

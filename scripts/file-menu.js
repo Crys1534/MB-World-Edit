@@ -350,13 +350,32 @@ function createUnifiedWorldCard(data) {
     return `<div class="template-card" style="position: relative; ${cardStyle}" ${hoverEvents}>${deleteBtnHTML}${historyBtnHTML}<div class="template-thumb" style="${imageStyle} position: relative;" onclick="${data.onClick}">${pinBtnHTML}${fallbackIcon}</div><div class="template-info" onclick="${data.onClick}"><div class="t-name" title="${data.name}">${data.name}</div><div class="t-meta"><b><span data-i18n="side_info_version">Version:</span></b> ${data.version || ""}</div><div class="t-meta"><b><span data-i18n="side_info_author">Author:</span></b> ${data.author || ""}</div>${data.dateStr ? `<div class="t-meta">📆 ${data.dateStr}</div>` : ''}${data.sizeStr ? `<div class="t-meta">📄 ${data.sizeStr}</div>` : ''}</div></div>`;
 }
 
-window.openFileMenu = function() {
+window.openFileMenu = async function() {
     const menu = document.getElementById('backstage-menu');
     if (menu) menu.style.display = 'flex';
+    
     const savedPic = localStorage.getItem('mbw_profile_pic');
     const lobbyPfp = document.getElementById('mp-pfp-preview');
     if (lobbyPfp) lobbyPfp.style.backgroundImage = savedPic ? `url('${savedPic}')` : `url('assets/default pfp.png')`;
-    switchBackstageTab('my-worlds');
+    
+    // ✨ MAGIA: Revisamos cuántos mundos tiene antes de decidir a qué pestaña llevarlo
+    if (typeof localDB !== 'undefined') {
+        try {
+            const worlds = await localDB.getWorlds();
+            if (worlds.length === 0) {
+                // Es un usuario nuevo o sin mapas, lo mandamos a las plantillas
+                switchBackstageTab('templates');
+            } else {
+                // Si ya tiene mapas, lo mandamos a "Mis Mundos" como siempre
+                switchBackstageTab('my-worlds');
+            }
+        } catch (error) {
+            // Si la base de datos falla, por defecto va a Mis Mundos
+            switchBackstageTab('my-worlds');
+        }
+    } else {
+        switchBackstageTab('my-worlds');
+    }
 };
 
 window.closeFileMenu = function() {

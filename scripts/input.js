@@ -704,7 +704,7 @@ canvas.addEventListener("mousedown", function (event) {
     else if (mouse.left || mouse.right) {
         if (currentTool === 'bucket' && mouse.left) {
             bucketFill(mouse.worldX, mouse.worldY);
-        } else if (currentTool !== 'eyedropper') {
+        } else {
             historyManager.startAction();
         }
     }
@@ -748,7 +748,7 @@ window.addEventListener("mouseup", function (event) {
     if (event.button == 0) mouse.left = false;
     if (event.button == 2) mouse.right = false;
 
-    if (currentTool !== 'eyedropper' && currentTool !== 'bucket' && currentTool !== 'select' && currentTool !== 'lasso' && currentTool !== 'paste' && currentTool !== 'move' && currentTool !== 'spawn_mob') {
+    if (currentTool !== 'bucket' && currentTool !== 'select' && currentTool !== 'lasso' && currentTool !== 'paste' && currentTool !== 'move' && currentTool !== 'spawn_mob') {
         historyManager.commitAction();
     }
 });
