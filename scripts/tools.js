@@ -151,21 +151,19 @@ let snipState = {
     startX: 0, startY: 0, currentX: 0, currentY: 0,
     camX: 0, camY: 0,
     rawMouseX: 0, rawMouseY: 0,
-    scrollLoop: null, tileSize: 32 // Tamaño de los bloques en la vista previa
+    scrollLoop: null, tileSize: 16
 };
 
 window.takeScreenshot = function() {
     initSnippingUI();
     snipState.active = true;
     
-    // Centramos la cámara del recorte en tu cámara actual
     snipState.camX = (typeof camera !== 'undefined' ? Math.floor(camera.x) : 0);
     snipState.camY = (typeof camera !== 'undefined' ? Math.floor(camera.y) : 0);
     
     document.getElementById('snip-modal').style.display = 'flex';
     renderSnipPreview();
     
-    // Iniciar el loop de scroll
     if (!snipState.scrollLoop) {
         snipState.scrollLoop = requestAnimationFrame(edgeScrollLoop);
     }
@@ -182,7 +180,7 @@ function initSnippingUI() {
         <div style="color:white; font-family:'Pixeltype', sans-serif; font-size:32px; margin-bottom:10px; text-shadow:2px 2px 0 #000;">
             📷 Select Area to Capture <span style="font-size:18px; color:#aaa;">(Drag near edges to scroll)</span>
         </div>
-        <div id="snip-container" style="position:relative; width:80vw; height:70vh; border:4px solid #555; background:#1a1a1a; overflow:hidden; cursor:crosshair; box-shadow:0 10px 30px rgba(0,0,0,0.8);">
+        <div id="snip-container" style="position:relative; width:80vw; height:70vh; border:4px solid #555; background:#7385b9; overflow:hidden; cursor:crosshair; box-shadow:0 10px 30px rgba(0,0,0,0.8);">
             <canvas id="snip-canvas" style="position:absolute; top:0; left:0; width:100%; height:100%; image-rendering:pixelated;"></canvas>
         </div>
         <div style="margin-top:15px; display:flex; gap:15px;">
@@ -194,16 +192,13 @@ function initSnippingUI() {
 
     const cvs = document.getElementById('snip-canvas');
     
-    // Convierte el ratón a coordenadas del Mundo (Eje Y Invertido)
     function getMouseWorldCoords(e) {
         const rect = cvs.getBoundingClientRect();
         snipState.rawMouseX = e.clientX - rect.left;
         snipState.rawMouseY = e.clientY - rect.top;
         
-        const my = cvs.height - snipState.rawMouseY; // Inversión Mágica
-        
         const wx = Math.floor(snipState.rawMouseX / snipState.tileSize) + Math.floor(snipState.camX);
-        const wy = Math.floor(my / snipState.tileSize) + Math.floor(snipState.camY);
+        const wy = Math.floor(snipState.rawMouseY / snipState.tileSize) + Math.floor(snipState.camY);
         return {wx, wy};
     }
 
@@ -219,7 +214,10 @@ function initSnippingUI() {
         renderSnipPreview();
     });
 
-    cvs.addEventListener('mousemove', (e) => {
+    // Escuchamos a toda la ventana para que puedas arrastrar fuera de la vista previa
+    window.addEventListener('mousemove', (e) => {
+        if (!snipState.active) return;
+        
         const coords = getMouseWorldCoords(e);
         if (snipState.isDragging) {
             snipState.currentX = coords.wx;
@@ -228,8 +226,10 @@ function initSnippingUI() {
         }
     });
 
-    cvs.addEventListener('mouseup', () => { snipState.isDragging = false; });
-    cvs.addEventListener('mouseleave', () => { snipState.isDragging = false; });
+    // Soltamos el clic sin importar dónde esté el ratón en la pantalla
+    window.addEventListener('mouseup', () => { 
+        if (snipState.active) snipState.isDragging = false; 
+    });
 }
 
 window.closeSnippingUI = function() {
@@ -248,15 +248,12 @@ function edgeScrollLoop() {
 
             if (snipState.rawMouseX < edge) { snipState.camX -= speed; moved = true; }
             if (snipState.rawMouseX > cvs.width - edge) { snipState.camX += speed; moved = true; }
-            
-            // Inversión: Top de la pantalla significa que subimos (Más Y)
-            if (snipState.rawMouseY < edge) { snipState.camY += speed; moved = true; }
-            if (snipState.rawMouseY > cvs.height - edge) { snipState.camY -= speed; moved = true; }
+            if (snipState.rawMouseY < edge) { snipState.camY -= speed; moved = true; }
+            if (snipState.rawMouseY > cvs.height - edge) { snipState.camY += speed; moved = true; }
 
             if (moved) {
-                const my = cvs.height - snipState.rawMouseY;
                 snipState.currentX = Math.floor(snipState.rawMouseX / snipState.tileSize) + Math.floor(snipState.camX);
-                snipState.currentY = Math.floor(my / snipState.tileSize) + Math.floor(snipState.camY);
+                snipState.currentY = Math.floor(snipState.rawMouseY / snipState.tileSize) + Math.floor(snipState.camY);
                 renderSnipPreview();
             }
         }
@@ -274,7 +271,9 @@ function renderSnipPreview() {
     cvs.width = cvs.parentElement.clientWidth;
     cvs.height = cvs.parentElement.clientHeight;
 
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    // ✨ PINTAMOS EL CIELO
+    ctx.fillStyle = '#7385b9';
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
     ctx.imageSmoothingEnabled = false;
 
     const startWX = Math.floor(snipState.camX);
@@ -287,9 +286,10 @@ function renderSnipPreview() {
             if (!mbwom.scene[x]) continue;
             for (let y = startWY; y <= endWY; y++) {
                 let rawBlock = typeof mbwom.getBlockState === 'function' ? mbwom.getBlockState(x, y) : mbwom.scene[x][y];
-                if (!rawBlock || rawBlock === 'air' || rawBlock.type === 'air' || rawBlock.type === 0 || rawBlock.type === '0') continue;
+                
+                // ✨ FILTRO ESTRICTO: Si no tiene tipo, lo ignoramos por completo
+                if (!rawBlock || !rawBlock.type || rawBlock.type === 'air' || rawBlock.type === 0 || rawBlock.type === '0') continue;
 
-                // ✨ LA CURA DEL MAGENTA: Normalizamos el bloque para que el motor lo entienda
                 let safeState = { type: rawBlock.type };
                 if (rawBlock.states1 !== undefined) safeState.states1 = rawBlock.states1;
 
@@ -300,8 +300,7 @@ function renderSnipPreview() {
                 if (!renderObj) continue;
 
                 const drawX = (x - Math.floor(snipState.camX)) * snipState.tileSize;
-                // ✨ Invertir Canvas Y
-                const drawY = cvs.height - (y - Math.floor(snipState.camY)) * snipState.tileSize - snipState.tileSize;
+                const drawY = (y - Math.floor(snipState.camY)) * snipState.tileSize;
 
                 if (window.images && window.images.blocks && window.images.blocks.complete) {
                     ctx.drawImage(window.images.blocks, renderObj.x, renderObj.y, 16, 16, drawX, drawY, snipState.tileSize, snipState.tileSize);
@@ -317,7 +316,7 @@ function renderSnipPreview() {
         const maxY = Math.max(snipState.startY, snipState.currentY);
 
         const boxX = (minX - Math.floor(snipState.camX)) * snipState.tileSize;
-        const boxY = cvs.height - (maxY - Math.floor(snipState.camY)) * snipState.tileSize - snipState.tileSize;
+        const boxY = (minY - Math.floor(snipState.camY)) * snipState.tileSize;
         const boxW = (maxX - minX + 1) * snipState.tileSize;
         const boxH = (maxY - minY + 1) * snipState.tileSize;
 
@@ -345,6 +344,10 @@ window.confirmScreenshot = function() {
     finalCanvas.width = (maxX - minX + 1) * exportSize;
     finalCanvas.height = (maxY - minY + 1) * exportSize;
     const ctx = finalCanvas.getContext('2d');
+    
+    // ✨ PINTAMOS EL CIELO EN LA FOTO FINAL TAMBIÉN
+    ctx.fillStyle = '#7385b9';
+    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
     ctx.imageSmoothingEnabled = false;
 
     if (typeof mbwom !== 'undefined' && mbwom.scene) {
@@ -352,7 +355,9 @@ window.confirmScreenshot = function() {
             if (!mbwom.scene[x]) continue;
             for (let y = minY; y <= maxY; y++) {
                 let rawBlock = typeof mbwom.getBlockState === 'function' ? mbwom.getBlockState(x, y) : mbwom.scene[x][y];
-                if (!rawBlock || rawBlock === 'air' || rawBlock.type === 'air' || rawBlock.type === 0 || rawBlock.type === '0') continue;
+                
+                // ✨ FILTRO ESTRICTO AL EXPORTAR
+                if (!rawBlock || !rawBlock.type || rawBlock.type === 'air' || rawBlock.type === 0 || rawBlock.type === '0') continue;
 
                 let safeState = { type: rawBlock.type };
                 if (rawBlock.states1 !== undefined) safeState.states1 = rawBlock.states1;
@@ -364,7 +369,7 @@ window.confirmScreenshot = function() {
                 if (!renderObj) continue;
 
                 const drawX = (x - minX) * exportSize;
-                const drawY = (maxY - y) * exportSize; // Mantiene el mundo de pie al descargar
+                const drawY = (y - minY) * exportSize;
 
                 if (window.images && window.images.blocks && window.images.blocks.complete) {
                     ctx.drawImage(window.images.blocks, renderObj.x, renderObj.y, 16, 16, drawX, drawY, exportSize, exportSize);
